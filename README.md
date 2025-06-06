@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+** To run the project: **
 
-## Getting Started
+1. Make sure Node.js is installed on your device / environment.
+2. Clone git repository
+3. Install dependencies: npm install
+4. Generate prisma client: npx prisma generate
+5. Run prisma migrations: npx prisma migrate dev --name init
+6. Run dev environment: npm run dev
+7. Post mock requests to url: localhost:{port_number}/api/webhooks
 
-First, run the development server:
+** Data structures and mock requests: **
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+You will find mock request payloads in /mocks folder. These payloads are based on stripe's subscription object and are a minified version of that.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Main data structures are defined in primsa/schema.prisma : Customer and Subscriptions table. A customer possibly might have multiple subscriptions and it's best to separate subscription and customer storage in DB and relate those with a foreign key in subscriptions table to reference the customer. Subscriptions does not track historical data, only represents the current subscription status. If you need to know historical data such as when a customer subscribed, paused, unpaused, cancelled, etc, would need a separate subscription events table.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+** Webhook Events **
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The webhook handles these stripe events:
 
-## Learn More
+customer.subscription.created
+customer.subscription.paused
+customer.subscription.resumed
+customer.subscription.deleted
 
-To learn more about Next.js, take a look at the following resources:
+I chose these webhooks as they represent the full subscription lifecycle from creating to canceling. I skipped free trial events as the business might not even have those, but they can easily be added to a switch statment.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+All events are handled by upserting values to a databse by subscription ID. Cancelation only updates by ID status and updated Date.
+Default event throws an error atm.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+** Asumptions/Limitations/Explanation **
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+I made an asumption that the customer is created before any subscription updates and might not have any subscription. I would asume that in real app I would not have to create a customer like I did in the webhook now. Limitation - does not track historical data, does not verify stripe signature (only mock function), database url is not in env varaible for simplicity. Could also handle errors with try catch and do something else if fails to upsert, but for now leave as is.

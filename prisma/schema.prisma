@@ -1,0 +1,44 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+// generally, url should be in .env file
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+
+// Customers may have multiple subscriptions, so it's best to separate customers and subscriptions.
+model Customer {
+  id            String          @id @default(cuid())
+  stripeId      String          @unique
+  subscriptions Subscription[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+
+// This represents only current subscription state. This does not track detailed historical subscription status changes.
+// To do that a subscription events table si needed to track more detailed analytics.
+model Subscription {
+  id                String     @id
+  customerId        String
+  status            String
+  priceId           String?
+  currentPeriodStart Int?
+  currentPeriodEnd   Int?
+  planInterval      String?
+  amount            Int?
+  currency          String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  customer          Customer   @relation(fields: [customerId], references: [stripeId])
+
+  @@index([customerId])
+}
